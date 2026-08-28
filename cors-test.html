@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            color: white;
+        }
+        .blue { background: #2563eb; }
+        .green { background: #16a34a; }
+        .red { background: #dc2626; }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            min-height: 100px;
+        }
+        h1 { margin-bottom: 5px; }
+        p { color: #666; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>🍽️ 맛집 리뷰 API 테스트</h1>
+    <p>Gateway(8080)를 통해 API를 호출합니다.</p>
+
+    <button class="blue"
+        onclick="callApi('/api/members/1')">
+        회원 조회 (ID: 1)
+    </button>
+    <button class="green"
+        onclick="callApi('/api/reviews')">
+        리뷰 목록
+    </button>
+    <button class="red"
+        onclick="callApi('/api/reviews/1')">
+        리뷰 상세 (ID: 1)
+    </button>
+
+    <h3>응답 결과:</h3>
+    <pre id="result">버튼을 클릭하세요...</pre>
+
+    <script>
+        async function callApi(path) {
+            const resultEl =
+                document.getElementById('result');
+            resultEl.textContent = '요청 중...';
+
+            try {
+                const response = await fetch(
+                    'http://localhost:8080' + path
+                );
+                const data = await response.json();
+                resultEl.textContent =
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent =
+                    'CORS 에러 또는 연결 실패!\n\n'
+                    + error.message
+                    + '\n\n개발자 도구(F12) > Console 탭에서'
+                    + '\n자세한 에러를 확인하세요.';
+            }
+        }
+    </script>
+</body>
+</html>

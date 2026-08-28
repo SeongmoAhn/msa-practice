@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: review-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/review_db
+    username: seongmoasm
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+server:
+  port: 8082

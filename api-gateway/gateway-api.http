@@ -1,0 +1,24 @@
+### Step 3-1: Gateway → member-service 테스트
+GET http://localhost:8080/api/members/1
+
+### Step 3-2: Gateway → review-service 테스트
+GET http://localhost:8080/api/reviews/1
+
+### Step 3-3: Gateway를 통한 리뷰 작성 테스트
+POST http://localhost:8080/api/reviews
+Content-Type: application/json
+
+{
+  "storeName": "이삭토스트",
+  "rating": 4,
+  "content": "아침에 간단히 먹기 좋아요. 햄치즈가 최고!",
+  "memberId": 2
+}
+
+### Step 3-4: 직접 호출 vs Gateway 호출 비교
+# 직접 호출
+GET http://localhost:8082/api/reviews/1
+
+###
+# Gateway 경유
+GET http://localhost:8080/api/reviews/1

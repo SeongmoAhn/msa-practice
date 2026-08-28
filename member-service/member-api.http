@@ -1,0 +1,43 @@
+### Step 3-1: 회원가입 테스트
+POST http://localhost:8081/api/members
+Content-Type: application/json
+
+{
+  "nickname": "맛집헌터",
+  "email": "hunter@example.com",
+  "password": "1234"
+}
+
+> {%
+    client.global.set("memberId", response.body.id);
+%}
+
+### Step 3-2: 회원 조회 테스트 (ID)
+GET http://localhost:8081/api/members/1
+
+### Step 3-3: 회원 조회 테스트 (닉네임)
+GET http://localhost:8081/api/members?nickname=맛집헌터
+
+### Step 3-4: 중복 체크 테스트 (같은 닉네임으로 다시 회원가입 → 에러 응답 기대)
+POST http://localhost:8081/api/members
+Content-Type: application/json
+
+{
+  "nickname": "맛집헌터",
+  "email": "other@example.com",
+  "password": "5678"
+}
+
+### Step 3-5: 회원 추가 등록 (Chapter 2 리뷰 작성용, id 기억해두기 - 아마 2)
+POST http://localhost:8081/api/members
+Content-Type: application/json
+
+{
+  "nickname": "먹방크리에이터",
+  "email": "creator@example.com",
+  "password": "1234"
+}
+
+> {%
+    client.global.set("member2Id", response.body.id);
+%}
