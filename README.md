@@ -19,6 +19,8 @@ Spring Cloud 기반 마이크로서비스 구조로 만든 맛집 리뷰 서비�
 - 클라이언트는 api-gateway(8080)로만 요청을 보냅니다.
 - `/api/members/**` 요청은 `lb://MEMBER-SERVICE`로, `/api/reviews/**` 요청은 `lb://REVIEW-SERVICE`로 Eureka를 통해 라우팅됩니다.
 - review-service는 리뷰에 작성자 정보를 붙일 때 Feign Client(`MemberServiceClient`)를 이용해 member-service에 직접 회원 정보를 요청합니다. 즉 리뷰를 작성하려면 `memberId`에 해당하는 회원이 미리 등록되어 있어야 합니다.
+- member-service 호출은 `MemberClientWrapper`가 감싸고 있고, Resilience4j Circuit Breaker(`member-service`)가 적용되어 있습니다. member-service 호출이 반복적으로 실패하면 회로가 열려(open) 즉시 fallback으로 `"알 수 없는 사용자"`를 반환하고, member-service로의 실제 호출은 잠시 차단됩니다.
+- review-service는 로드밸런싱 실습을 위해 컨테이너 2개(`review-review-service-1`, `-2`)로 띄워두고 있습니다. `ReviewController.getReview()`에서 요청을 처리한 컨테이너의 hostname을 로그로 남겨 어느 인스턴스가 응답했는지 확인할 수 있습니다.
 - 각 서비스는 자체 데이터베이스(PostgreSQL)를 따로 사용합니다. (`member_db`, `review_db`)
 
 ## API
@@ -49,6 +51,7 @@ Spring Cloud 기반 마이크로서비스 구조로 만든 맛집 리뷰 서비�
 - Spring Cloud Netflix Eureka (서비스 디스커버리)
 - Spring Data JPA
 - Spring Cloud OpenFeign (서비스 간 통신)
+- Resilience4j (`spring-cloud-starter-circuitbreaker-resilience4j`) — member-service 호출 Circuit Breaker
 - PostgreSQL
 - Gradle / Docker Compose
 
@@ -92,6 +95,24 @@ cd review-service
 cd api-gateway
 ./gradlew bootRun
 ```
+
+## 장애 대응: Circuit Breaker
+
+review-service가 member-service를 Feign으로 호출하는 부분(`ReviewService` → `MemberClientWrapper` → `MemberServiceClient`)에 Resilience4j Circuit Breaker를 적용했습니다.
+
+- `review-service/src/main/resources/application.yaml`에 `member-service` 인스턴스로 설정 등록:
+  ```yaml
+  resilience4j:
+    circuitbreaker:
+      instances:
+        member-service:
+          sliding-window-size: 5
+          failure-rate-threshold: 50
+          wait-duration-in-open-state: 30s
+          permitted-number-of-calls-in-half-open-state: 3
+  ```
+- `MemberClientWrapper.getMember()`에 `@CircuitBreaker(name = "member-service", fallbackMethod = "getMemberFallback")`를 붙여서, 최근 5번 호출 중 50% 이상 실패하면 회로가 열립니다(open). 열린 상태에서는 실제 member-service 호출 없이 바로 `getMemberFallback()`이 실행되어 `"알 수 없는 사용자"`로 채워진 `MemberDto`를 반환합니다. 30초 후 half-open 상태로 전환해 3번까지 실제 호출을 시도해보고 성공률에 따라 다시 닫히거나 열립니다.
+- member-service가 죽어도 review-service의 리뷰 조회/작성 자체는 500으로 죽지 않고 "알 수 없는 사용자"로 표시된 응답을 계속 내려줄 수 있습니다.
 
 ## 트러블슈팅 기록
 
@@ -150,6 +171,19 @@ cd api-gateway
     "email": "hong@test.com",
     "password": "1234"
   }
+  ```
+
+### 6. review-service 재빌드/재기동을 여러 번 반복한 뒤 `POST /api/reviews`, `GET /api/reviews/1`이 간헐적으로 500
+
+- **증상**: 게이트웨이 라우팅과 요청 자체는 정상인데 가끔 500. api-gateway 로그에 `java.net.UnknownHostException: Failed to resolve '934e5d89d66c'` / `DnsErrorCauseException: Query failed with NXDOMAIN`.
+- **원인**: `docker compose up -d --build`로 review-service를 여러 번 재빌드하면서, Docker가 매번 새 컨테이너에 랜덤 hostname을 부여함. Eureka는 이걸 새 인스턴스 등록으로 처리하고, 이전 컨테이너가 정상 종료되지 않으면 등록 정보가 남음. `eureka-server`가 기본값인 self-preservation 모드로 동작 중이라 갱신 비율이 떨어져도 죽은 인스턴스를 만료시키지 않고 계속 레지스트리에 남겨둠. api-gateway의 로드밸런서가 라운드로빈으로 죽은 컨테이너의 hostname을 골랐다가 DNS 조회(NXDOMAIN)에 실패해 500이 발생.
+- **해결**: `docker compose restart eureka-server`로 레지스트리를 초기화. 재시작 후 살아있는 인스턴스들이 몇 초 안에 재등록되고 죽은 인스턴스 항목은 사라짐.
+- **재발 방지 (선택)**: 개발 환경에서는 `eureka-server`에 아래 설정을 추가해 self-preservation을 끄고 만료 주기를 짧게 가져가면 죽은 인스턴스가 빨리 정리됨.
+  ```yaml
+  eureka:
+    server:
+      enable-self-preservation: false
+      eviction-interval-timer-in-ms: 5000
   ```
 
 ### 정리: 정상 동작을 위한 API 호출 순서
