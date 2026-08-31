@@ -17,8 +17,8 @@ Content-Type: application/json
 
 ### Step 3-4: 직접 호출 vs Gateway 호출 비교
 # 직접 호출
-GET http://localhost:8082/api/reviews/1
+GET http://localhost:8080/api/reviews/1
 
 ###
 # Gateway 경유
-GET http://localhost:8080/api/reviews/1
+GET http://localhost:8080/api/members/1

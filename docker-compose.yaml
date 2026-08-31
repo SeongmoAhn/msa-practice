@@ -1,0 +1,74 @@
+services:
+  # 1. Eureka Server
+  eureka-server:
+    build: ./eureka-server
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Member DB
+  member-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: member_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - member-data:/var/lib/postgresql/data
+
+  # 3. Member Service
+  member-service:
+    build: ./member-service
+    environment:
+      DB_URL: jdbc:postgresql://member-db:5432/member_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      EUREKA_URL: http://eureka-server:8761/eureka
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      member-db:
+        condition: service_started
+
+  # 4. Review DB
+  review-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: review_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - review-data:/var/lib/postgresql/data
+
+  # 5. Review Service
+  review-service:
+    build: ./review-service
+    environment:
+      DB_URL: jdbc:postgresql://review-db:5432/review_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      EUREKA_URL: http://eureka-server:8761/eureka
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      review-db:
+        condition: service_started
+
+  # 6. API Gateway
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+volumes:
+  member-data:
+  review-data:

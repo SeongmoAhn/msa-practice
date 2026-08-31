@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 @FeignClient(
-        name = "member-service",
-        url = "http://localhost:8081"
+        name = "member-service"
+//        url = "http://localhost:8081"
 )
 public interface MemberServiceClient {
 

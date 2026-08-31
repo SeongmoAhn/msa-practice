@@ -1,5 +1,6 @@
 server:
   port: 8080
+
 spring:
   application:
     name: api-gateway
@@ -7,24 +8,17 @@ spring:
     gateway:
       server:
         webflux:
-          globalcors:
-            cors-configurations:
-              '[/**]':
-                allowed-origins: "*"
-                allowed-methods:
-                  - GET
-                  - POST
-                  - PUT
-                  - DELETE
-                  - OPTIONS
-                allowed-headers: "*"
-                allow-credentials: false
           routes:
             - id: member-service
-              uri: http://localhost:8081
+              uri: lb://MEMBER-SERVICE
               predicates:
                 - Path=/api/members/**
             - id: review-service
-              uri: http://localhost:8082
+              uri: lb://REVIEW-SERVICE
               predicates:
                 - Path=/api/reviews/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
